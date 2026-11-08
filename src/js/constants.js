@@ -1,0 +1,9 @@
+export const MAX_FILES = 50;
+export const MAX_FILE_SIZE_MB = 50;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+export const SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
+export const DEFAULT_WIDTH = 1920;
+export const DEFAULT_HEIGHT = 1280;
+export const SETTINGS_STORAGE_KEY = 'prophoto-settings-v1';
+export const APP_VERSION = '2.0.0';
+export const PRODUCT_NAME = 'ProPhoto Watermarker & Resizer';

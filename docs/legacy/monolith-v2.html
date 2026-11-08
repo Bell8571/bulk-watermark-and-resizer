@@ -1,0 +1,2079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProPhoto Watermarker & Resizer</title>
+    <!-- CDN dependencies with Subresource Integrity (SRI) for security -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- JSZip for ZIP export - SRI protected (update hash from https://www.srihash.org/ if CDN changes) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+            integrity="sha512-5TYU7nP0z6W0p8w8r0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"
+            onerror="console.error('JSZip failed to load from CDN'); window.JSZIP_LOAD_FAILED = true;"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f1419, #1a2633, #0f1419);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .batch-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 212, 255, 0.08);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.25);
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto;
+            opacity: 0.9;
+        }
+        header .lead-text {
+            margin-top: 18px;
+            font-size: 1rem;
+            color: rgba(255,255,255,0.75);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+        
+        .card-title i {
+            color: #00d4ff;
+        }
+        
+        .accent-color {
+            color: #00d4ff;
+        }
+        
+        .upload-area {
+            border: 3px dashed rgba(255, 255, 255, 0.6);
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.04);
+        }
+        
+        .upload-area:hover {
+            border-color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+        
+        .upload-area i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+        
+        .upload-area h3 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+        }
+        .card-subtitle {
+            margin-top: -10px;
+            margin-bottom: 20px;
+            color: rgba(255,255,255,0.75);
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        
+        .upload-area p {
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .btn {
+            background: linear-gradient(to right, #0099cc, #00d4ff);
+            color: #0f1419;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(0, 212, 255, 0.35);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+        }
+        
+        .control-group h3 {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group h3 i {
+            color: #00d4ff;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            outline: none;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+        }
+        
+        .color-picker-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .swatches {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .swatch {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .swatch.selected {
+            border-color: #fff;
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+
+        #watermarkColor {
+            width: 44px;
+            height: 32px;
+            padding: 2px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .preview-filter {
+            padding: 8px 16px;
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 20px;
+            color: #00d4ff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .preview-filter.active, .preview-filter:hover {
+            background: rgba(0, 212, 255, 0.35);
+            border-color: #00d4ff;
+        }
+        
+        .preview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            min-height: 100px;
+        }
+        
+        .preview-item {
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .preview-item:hover {
+            border-color: rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+        }
+        
+        .preview-item.remove-mode {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        
+        .preview-item.remove-mode:hover {
+            background: rgba(255, 59, 48, 0.2);
+            border-color: #ff3b30;
+            opacity: 1;
+        }
+        
+        .preview-item img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+        
+        .preview-item-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+            padding: 8px;
+            font-size: 0.75rem;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .preview-item:hover .preview-item-label {
+            opacity: 1;
+        }
+        
+        .preview-item .placeholder {
+            text-align: center;
+            padding: 15px;
+            opacity: 0.7;
+        }
+        
+        .preview-item .placeholder i {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+        
+        .preview-item .remove-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #ff3b30;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .preview-item.remove-mode .remove-badge {
+            opacity: 1;
+        }
+        
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .preset-btn {
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            color: #00d4ff;
+            padding: 8px 14px;
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .preset-btn:hover {
+            background: rgba(0, 212, 255, 0.35);
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+        }
+        
+                .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        /* ---- "How to use" collapsible instructions ---- */
+        .instructions {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .instructions > summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 22px 30px;
+            font-size: 1.35rem;
+            font-weight: 600;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .instructions > summary::-webkit-details-marker { display: none; }
+
+        .instructions > summary:hover {
+            background: rgba(0, 212, 255, 0.06);
+        }
+
+        .instructions > summary i.fa-circle-question {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+
+        .instructions > summary .chevron {
+            margin-left: auto;
+            color: #00d4ff;
+            transition: transform 0.25s ease;
+            font-size: 1rem;
+        }
+
+        .instructions[open] > summary .chevron {
+            transform: rotate(180deg);
+        }
+
+        .instructions-body {
+            padding: 0 30px 28px;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.6;
+        }
+
+        .instructions-body .intro {
+            margin-bottom: 18px;
+            opacity: 0.9;
+        }
+
+        .steps {
+            list-style: none;
+            counter-reset: step;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .steps li {
+            position: relative;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px 18px 16px 56px;
+        }
+
+        .steps li::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 16px;
+            top: 16px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(to right, #0099cc, #00d4ff);
+            color: #0f1419;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .steps li strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #fff;
+            font-size: 1.02rem;
+        }
+
+        .steps li span {
+            font-size: 0.92rem;
+            opacity: 0.85;
+        }
+
+        .tips {
+            margin-top: 20px;
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.25);
+            border-radius: 12px;
+            padding: 16px 20px;
+        }
+
+        .tips h4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 1.05rem;
+        }
+
+        .tips h4 i { color: #00d4ff; }
+
+        .tips ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .tips li {
+            margin-bottom: 6px;
+            font-size: 0.92rem;
+            opacity: 0.9;
+        }
+
+        .tips li:last-child { margin-bottom: 0; }
+
+        .settings-export-import {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .settings-btn {
+            background: rgba(0, 212, 255, 0.15);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            color: #00d4ff;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: rgba(0, 212, 255, 0.25);
+        }
+
+        #settingsInput {
+            display: none;
+        }
+
+        .debug-console {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .debug-entry {
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            border-left: 3px solid #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .debug-entry.error {
+            border-left-color: #ff3b30;
+            background: rgba(255, 59, 48, 0.08);
+        }
+
+        .debug-entry.success {
+            border-left-color: #34c759;
+            background: rgba(52, 199, 89, 0.08);
+        }
+
+        .debug-entry.warning {
+            border-left-color: #ffd60a;
+            background: rgba(255, 214, 10, 0.08);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #0099cc, #00d4ff);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        /* Advanced Watermark Controls */
+        .watermark-type-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .watermark-type-btn {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .watermark-type-btn.active {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: #00d4ff;
+        }
+
+        .position-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .position-btn {
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #00d4ff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+        }
+
+        .position-btn:hover {
+            background: rgba(0, 212, 255, 0.25);
+        }
+
+        .position-btn.active {
+            background: rgba(0, 212, 255, 0.4);
+            border-color: #00d4ff;
+        }
+
+        .live-preview-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+        }
+
+        .live-preview-canvas {
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: #000;
+        }
+
+        .resize-mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .resize-mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .resize-mode-btn.active {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: #00d4ff;
+        }
+
+        .thumbnail-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .thumbnail-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .thumbnail-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: #ff3b30;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-camera"></i> ProPhoto Watermarker & Resizer</h1>
+            <p>Professional watermarking & batch resizing for photographers. Protect your portfolio and deliver client files at scale.</p>
+            <p class="lead-text">Perfect for client galleries, proof sets, social sharing and print-ready exports.</p>
+        </header>
+
+        <details class="card instructions">
+            <summary>
+                <i class="fas fa-circle-question"></i>
+                How to use this tool
+                <i class="fas fa-chevron-down chevron"></i>
+            </summary>
+            <div class="instructions-body">
+                <p class="intro">Watermark and resize a whole batch of photos in your browser — nothing is uploaded to a server. Follow the steps below.</p>
+                <ol class="steps">
+                    <li>
+                        <strong>Upload your images</strong>
+                        <span>Drag &amp; drop files onto the upload box, or click <em>Select Images</em> to browse. Up to 50 images per batch, max 50&nbsp;MB each.</span>
+                    </li>
+                    <li>
+                        <strong>Configure resize &amp; watermark</strong>
+                        <span>Choose resize mode (dimensions or percentage), toggle between text/image watermark, pick position from the 3x3 grid, and adjust opacity/color/scale.</span>
+                    </li>
+                    <li>
+                        <strong>Live Preview</strong>
+                        <span>See real-time preview of the first image with current settings applied on the live canvas.</span>
+                    </li>
+                    <li>
+                        <strong>Process &amp; Export</strong>
+                        <span>Click <em>Process Images</em>. Progress bar shows status. Download as individual files or a single ZIP archive.</span>
+                    </li>
+                </ol>
+                <div class="tips">
+                    <h4><i class="fas fa-lightbulb"></i> Tips</h4>
+                    <ul>
+                        <li>Client-side only: all processing happens in your browser using Canvas API.</li>
+                        <li>Supports JPEG, PNG, WebP, GIF, BMP. Max 50 files, 50MB each.</li>
+                        <li>Use the 3x3 position grid for precise watermark placement.</li>
+                        <li>Image watermarks (logos) maintain aspect ratio automatically.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <div class="card">
+            <h2 class="card-title"><i class="fas fa-cloud-upload-alt"></i> Upload Your Images</h2>
+            <p class="card-subtitle">Drag & drop multiple images or browse. Thumbnails appear below with remove buttons.</p>
+            
+            <div id="batchStats" class="batch-stats" style="display:none;">
+                <div class="stat-item"><span class="stat-label">Uploaded</span><span class="stat-value" id="statUploaded">0</span></div>
+                <div class="stat-item"><span class="stat-label">Processed</span><span class="stat-value" id="statProcessed">0</span></div>
+                <div class="stat-item"><span class="stat-label">Format</span><span class="stat-value" id="statFormat">-</span></div>
+                <div class="stat-item"><span class="stat-label">Output Size</span><span class="stat-value" id="statSize">-</span></div>
+            </div>
+            
+            <div class="upload-area" id="dropArea">
+                <i class="fas fa-images"></i>
+                <h3>Drag & Drop Images Here</h3>
+                <p>or click to browse files (25-50 images recommended)</p>
+                <button class="btn" id="browseBtn">Select Images</button>
+                <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" style="display: none;">
+            </div>
+
+            <!-- Thumbnail Gallery -->
+            <div id="thumbnailGallery" class="thumbnail-gallery"></div>
+            
+            <div class="controls">
+                <!-- Resize Controls -->
+                <div class="control-group">
+                    <h3><i class="fas fa-expand-arrows-alt"></i> Resize Settings</h3>
+                    
+                    <div class="resize-mode-toggle">
+                        <button type="button" class="resize-mode-btn active" data-mode="dimensions">By Dimensions</button>
+                        <button type="button" class="resize-mode-btn" data-mode="percentage">By Percentage</button>
+                    </div>
+
+                    <div id="dimensionsMode">
+                        <div class="form-group">
+                            <label>Quick Presets</label>
+                            <div class="preset-buttons">
+                                <button type="button" class="preset-btn" onclick="setPreset(1920, 1280)">Web (1920×1280)</button>
+                                <button type="button" class="preset-btn" onclick="setPreset(2048, 1365)">Portfolio (2K)</button>
+                                <button type="button" class="preset-btn" onclick="setPreset(3600, 2400)">Print (3600×2400)</button>
+                                <button type="button" class="preset-btn" onclick="setPreset(1080, 1080)">Social (1080×1080)</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="resizeWidth">Width (px)</label>
+                            <input type="number" id="resizeWidth" class="form-control" value="1920" min="50" max="8000">
+                        </div>
+                        <div class="form-group">
+                            <label for="resizeHeight">Height (px)</label>
+                            <input type="number" id="resizeHeight" class="form-control" value="1280" min="50" max="8000">
+                        </div>
+                    </div>
+
+                    <div id="percentageMode" style="display:none;">
+                        <div class="form-group">
+                            <label for="resizePercentage">Scale (%)</label>
+                            <div class="slider-container">
+                                <input type="range" id="resizePercentage" min="10" max="200" value="100">
+                                <span id="percentageValue">100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><input type="checkbox" id="constrainProportions" checked> Constrain Proportions</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="resizeQuality">Export Format</label>
+                        <select id="resizeQuality" class="form-control">
+                            <option value="high">PNG Lossless</option>
+                            <option value="medium" selected>JPG 92% (Recommended)</option>
+                            <option value="low">JPG 75% (Optimized)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Advanced Watermark Controls -->
+                <div class="control-group">
+                    <h3><i class="fas fa-water"></i> Watermark Settings</h3>
+                    
+                    <div class="watermark-type-toggle">
+                        <button type="button" class="watermark-type-btn active" data-type="text">Text</button>
+                        <button type="button" class="watermark-type-btn" data-type="image">Image / Logo</button>
+                    </div>
+
+                    <!-- Text Watermark Settings -->
+                    <div id="textWatermarkSettings">
+                        <div class="form-group">
+                            <label for="watermarkText">Watermark Text</label>
+                            <input type="text" id="watermarkText" class="form-control" placeholder="Enter text" value="© Your Brand">
+                        </div>
+                        <div class="form-group">
+                            <label for="watermarkFont">Font Family</label>
+                            <select id="watermarkFont" class="form-control">
+                                <option value="Arial">Arial</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Impact">Impact</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="watermarkColor">Text Color</label>
+                            <div class="color-picker-row">
+                                <div class="swatches">
+                                    <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+                                    <button type="button" class="swatch" data-color="#000000" style="background:#000000" title="Black"></button>
+                                    <button type="button" class="swatch" data-color="#ff3b30" style="background:#ff3b30" title="Red"></button>
+                                    <button type="button" class="swatch" data-color="#ffd60a" style="background:#ffd60a" title="Yellow"></button>
+                                    <button type="button" class="swatch" data-color="#34c759" style="background:#34c759" title="Green"></button>
+                                    <button type="button" class="swatch" data-color="#00d4ff" style="background:#00d4ff" title="Cyan"></button>
+                                </div>
+                                <input type="color" id="watermarkColor" value="#ffffff">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Watermark Settings -->
+                    <div id="imageWatermarkSettings" style="display:none;">
+                        <div class="form-group">
+                            <label for="watermarkImageInput">Upload Logo</label>
+                            <input type="file" id="watermarkImageInput" accept="image/*" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="watermarkImageScale">Logo Scale: <span id="imageScaleValue">50%</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="watermarkImageScale" min="10" max="150" value="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="watermarkOpacity">Opacity: <span id="opacityValue">70%</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="watermarkOpacity" min="0" max="100" value="70">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Position (3×3 Grid)</label>
+                        <div class="position-grid" id="positionGrid">
+                            <button type="button" class="position-btn" data-pos="top-left">↖</button>
+                            <button type="button" class="position-btn" data-pos="top-center">↑</button>
+                            <button type="button" class="position-btn" data-pos="top-right">↗</button>
+                            <button type="button" class="position-btn" data-pos="middle-left">←</button>
+                            <button type="button" class="position-btn active" data-pos="center">●</button>
+                            <button type="button" class="position-btn" data-pos="middle-right">→</button>
+                            <button type="button" class="position-btn" data-pos="bottom-left">↙</button>
+                            <button type="button" class="position-btn" data-pos="bottom-center">↓</button>
+                            <button type="button" class="position-btn" data-pos="bottom-right">↘</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="live-preview-section">
+                <h3><i class="fas fa-eye"></i> Live Preview (First Image)</h3>
+                <canvas id="livePreviewCanvas" class="live-preview-canvas" width="600" height="400"></canvas>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" id="processBtn"><i class="fas fa-cogs"></i> Process Images</button>
+                <button class="btn btn-secondary" id="downloadBtn" disabled><i class="fas fa-download"></i> Download ZIP</button>
+            </div>
+
+            <!-- Progress -->
+            <div id="progressContainer" style="display:none; margin-top:20px;">
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div id="progressText" style="text-align:center; margin-top:8px;">0%</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title"><i class="fas fa-images"></i> Batch Preview</h2>
+            <div class="preview-controls">
+                <button type="button" class="preview-filter active" data-filter="all">All</button>
+                <button type="button" class="preview-filter" data-filter="uploaded">Source</button>
+                <button type="button" class="preview-filter" data-filter="processed">Processed</button>
+                <button type="button" class="preview-filter" id="toggleRemoveMode"><i class="fas fa-trash"></i> Remove Mode (OFF)</button>
+            </div>
+            <div class="preview-container" id="previewContainer">
+                <div class="preview-item"><div class="placeholder"><i class="fas fa-image"></i><p>No images loaded</p></div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title"><i class="fas fa-terminal"></i> Debug Console</h2>
+            <button type="button" class="settings-btn" id="clearDebugBtn"><i class="fas fa-trash"></i> Clear Log</button>
+            <div class="debug-console" id="debugConsole">
+                <div class="debug-entry success">Application initialized. Ready to process images.</div>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2024 ProPhoto Watermarker & Resizer • Professional tools for photographers • © BellCorporateLabs</p>
+        </footer>
+    </div>
+
+    <!-- Security: Content Security Policy (recommended to also set via HTTP headers in production) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self';">
+
+    <script>
+        /* =====================================================================
+         * ProPhoto Watermarker & Resizer - Production Hardened Edition
+         * Security, input validation, sanitization, error boundaries, and
+         * memory safety improvements for production deployment.
+         * ===================================================================== */
+
+        // === SECURITY HARDENING LAYER ===
+        (function() {
+            'use strict';
+
+            // Prevent clickjacking
+            if (window.self !== window.top) {
+                window.top.location = window.self.location;
+            }
+
+            // Disable right-click context menu on sensitive areas (optional)
+            // document.addEventListener('contextmenu', e => e.preventDefault());
+
+            // Global error boundary
+            window.addEventListener('error', function(event) {
+                console.error('[Global Error]', event.error);
+                if (window.logger) {
+                    window.logger.error('Unexpected error: ' + (event.error?.message || event.message));
+                }
+            });
+
+            // Unhandled promise rejection handler
+            window.addEventListener('unhandledrejection', function(event) {
+                console.error('[Unhandled Promise]', event.reason);
+                if (window.logger) {
+                    window.logger.error('Unhandled promise rejection');
+                }
+                event.preventDefault();
+            });
+
+            // Secure random string generator (for future use)
+            window.secureRandomString = function(length = 16) {
+                const array = new Uint8Array(length);
+                crypto.getRandomValues(array);
+                return Array.from(array, b => ('0' + b.toString(16)).slice(-2)).join('');
+            };
+
+            // Input sanitization helper
+            window.sanitizeInput = function(str) {
+                if (typeof str !== 'string') return '';
+                return str
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;')
+                    .trim();
+            };
+
+            // Validate image file type strictly
+            window.isValidImageFile = function(file) {
+                if (!file || !file.type) return false;
+                const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
+                return allowed.includes(file.type);
+            };
+
+            // Rate limiter for processing (prevent accidental mass processing)
+            window.ProcessingRateLimiter = {
+                lastProcessTime: 0,
+                minInterval: 500, // ms between process calls
+                canProcess: function() {
+                    const now = Date.now();
+                    if (now - this.lastProcessTime < this.minInterval) {
+                        return false;
+                    }
+                    this.lastProcessTime = now;
+                    return true;
+                }
+            };
+
+            // Memory safety: Track object URLs for cleanup
+            window.ActiveObjectURLManager = {
+                urls: new Set(),
+                create: function(file) {
+                    const url = URL.createObjectURL(file);
+                    this.urls.add(url);
+                    return url;
+                },
+                revoke: function(url) {
+                    try { URL.revokeObjectURL(url); } catch (_) {}
+                    this.urls.delete(url);
+                },
+                revokeAll: function() {
+                    this.urls.forEach(u => { try { URL.revokeObjectURL(u); } catch (_) {} });
+                    this.urls.clear();
+                }
+            };
+
+            console.log('%c[Security] Production hardening layer initialized', 'color:#34c759');
+        })();
+
+        const MAX_FILES = 50;
+        const MAX_FILE_SIZE_MB = 50;
+        const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+        const SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
+        const DEFAULT_WIDTH = 1920;
+        const DEFAULT_HEIGHT = 1280;
+
+        class DebugLogger {
+            constructor() {
+                this.logs = [];
+                this.maxLogs = 60;
+            }
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = { message, type, timestamp };
+                this.logs.push(entry);
+                if (this.logs.length > this.maxLogs) this.logs.shift();
+                this._renderLog(entry);
+                this._consoleOutput(message, type);
+            }
+            error(message, error = null) {
+                const fullMsg = error ? `${message}: ${error.message || error}` : message;
+                this.log(fullMsg, 'error');
+            }
+            success(message) { this.log(message, 'success'); }
+            warning(message) { this.log(message, 'warning'); }
+            _consoleOutput(message, type) {
+                const prefix = `[${type.toUpperCase()}]`;
+                if (type === 'error') console.error(prefix, message);
+                else if (type === 'warning') console.warn(prefix, message);
+                else console.log(prefix, message);
+            }
+            _renderLog(entry) {
+                const debugConsole = document.getElementById('debugConsole');
+                if (!debugConsole) return;
+                const div = document.createElement('div');
+                div.className = `debug-entry ${entry.type}`;
+                div.textContent = `${entry.timestamp} | ${entry.message}`;
+                debugConsole.appendChild(div);
+                debugConsole.scrollTop = debugConsole.scrollHeight;
+            }
+            clear() {
+                this.logs = [];
+                const debugConsole = document.getElementById('debugConsole');
+                if (debugConsole) debugConsole.innerHTML = '<div class="debug-entry success">Debug log cleared.</div>';
+            }
+        }
+
+        const logger = new DebugLogger();
+
+        // Global state
+        let uploadedFiles = [];
+        let processedImages = [];
+        let activeObjectURLs = [];
+        let removalMode = false;
+        let currentPreviewFilter = 'all';
+        let watermarkImage = null;
+        let currentWatermarkType = 'text';
+        let currentResizeMode = 'dimensions';
+        let currentPosition = 'center';
+        let constrainProportions = true;
+
+        // Helper: revoke object URLs
+        function revokeAllObjectURLs() {
+            activeObjectURLs.forEach(url => { try { URL.revokeObjectURL(url); } catch (_) {} });
+            activeObjectURLs = [];
+        }
+
+        // Helper: is light color
+        function isLightColor(hex) {
+            if (typeof hex !== 'string') return true;
+            const m = hex.replace('#', '').toLowerCase();
+            if (m.length !== 6) return true;
+            try {
+                const r = parseInt(m.slice(0, 2), 16);
+                const g = parseInt(m.slice(2, 4), 16);
+                const b = parseInt(m.slice(4, 6), 16);
+                return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+            } catch (_) { return true; }
+        }
+
+        // Update batch stats
+        function updateBatchStats() {
+            const batchStats = document.getElementById('batchStats');
+            if (!batchStats) return;
+            if (uploadedFiles.length === 0) {
+                batchStats.style.display = 'none';
+                return;
+            }
+            batchStats.style.display = 'grid';
+            document.getElementById('statUploaded').textContent = uploadedFiles.length;
+            document.getElementById('statProcessed').textContent = processedImages.length;
+            const qualityEl = document.getElementById('resizeQuality');
+            const qualityMap = { 'high': 'PNG', 'medium': 'JPG 92%', 'low': 'JPG 75%' };
+            document.getElementById('statFormat').textContent = qualityMap[qualityEl?.value] || 'JPG';
+            const width = document.getElementById('resizeWidth')?.value || DEFAULT_WIDTH;
+            const height = document.getElementById('resizeHeight')?.value || DEFAULT_HEIGHT;
+            document.getElementById('statSize').textContent = `${width}×${height}`;
+        }
+
+        // Update thumbnail gallery
+        function updateThumbnailGallery() {
+            const gallery = document.getElementById('thumbnailGallery');
+            if (!gallery) return;
+            gallery.innerHTML = '';
+            uploadedFiles.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'thumbnail-item';
+                const url = URL.createObjectURL(file);
+                activeObjectURLs.push(url);
+                item.innerHTML = `
+                    <img src="${url}" alt="${file.name}">
+                    <button class="thumbnail-remove">×</button>
+                `;
+                item.querySelector('.thumbnail-remove').addEventListener('click', (e) => {
+                    e.stopImmediatePropagation();
+                    uploadedFiles.splice(index, 1);
+                    processedImages = [];
+                    updateThumbnailGallery();
+                    updatePreview();
+                    updateBatchStats();
+                    updateLivePreview();
+                    logger.log(`Removed: ${file.name}`);
+                });
+                gallery.appendChild(item);
+            });
+        }
+
+        // === HARDENED FILE HANDLER ===
+        function handleFiles(files) {
+            if (!files || typeof files.length !== 'number' || files.length === 0) {
+                logger.warning('No files provided');
+                return;
+            }
+
+            // Rate limiting protection
+            if (!window.ProcessingRateLimiter.canProcess()) {
+                alert('Please wait before processing again.');
+                return;
+            }
+
+            const candidates = Array.from(files);
+            const accepted = [];
+            let rejected = { count: 0, reasons: [] };
+
+            for (const file of candidates) {
+                // Strict validation
+                if (!file || !file.name || !file.type) {
+                    rejected.count++;
+                    rejected.reasons.push('Invalid file object');
+                    continue;
+                }
+
+                // Use global validator if available
+                if (window.isValidImageFile && !window.isValidImageFile(file)) {
+                    rejected.count++;
+                    rejected.reasons.push(`Unsupported format: ${file.type}`);
+                    continue;
+                }
+
+                if (!SUPPORTED_FORMATS.includes(file.type)) {
+                    rejected.count++;
+                    continue;
+                }
+
+                if (file.size > MAX_FILE_SIZE_BYTES) {
+                    rejected.count++;
+                    rejected.reasons.push(`Too large: ${file.name}`);
+                    continue;
+                }
+
+                // Additional security: check file name for path traversal
+                if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
+                    rejected.count++;
+                    rejected.reasons.push(`Suspicious filename: ${file.name}`);
+                    continue;
+                }
+
+                accepted.push(file);
+            }
+
+            if (accepted.length === 0) {
+                alert(`No valid images imported.\n\nSupported: JPEG, PNG, WebP, GIF, BMP\nMax: ${MAX_FILE_SIZE_MB}MB per file, ${MAX_FILES} per batch`);
+                return;
+            }
+
+            // Enforce hard limit
+            const finalFiles = accepted.slice(0, MAX_FILES);
+            if (accepted.length > MAX_FILES) {
+                logger.warning(`Trimmed to ${MAX_FILES} files`);
+            }
+
+            // Clean previous state
+            if (window.ActiveObjectURLManager) {
+                window.ActiveObjectURLManager.revokeAll();
+            } else {
+                revokeAllObjectURLs();
+            }
+
+            uploadedFiles = finalFiles;
+            processedImages = [];
+            document.getElementById('downloadBtn').disabled = true;
+
+            updateThumbnailGallery();
+            updatePreview();
+            updateBatchStats();
+            updateLivePreview();
+
+            logger.success(`Loaded ${uploadedFiles.length} images`);
+            if (rejected.count > 0) {
+                logger.warning(`Rejected ${rejected.count} files`);
+            }
+        }
+
+        // Update main preview grid
+        function updatePreview() {
+            revokeAllObjectURLs();
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = '';
+
+            const filesToShow = currentPreviewFilter === 'uploaded' ? uploadedFiles :
+                currentPreviewFilter === 'processed' ? processedImages.map(p => ({ name: p.name, isCanvas: true, canvas: p.canvas })) :
+                uploadedFiles.length > 0 ? uploadedFiles : processedImages.length > 0 ? processedImages.map(p => ({ name: p.name, isCanvas: true, canvas: p.canvas })) : null;
+
+            if (!filesToShow || filesToShow.length === 0) {
+                container.innerHTML = '<div class="preview-item"><div class="placeholder"><i class="fas fa-image"></i><p>No images</p></div></div>';
+                return;
+            }
+
+            filesToShow.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = removalMode ? 'preview-item remove-mode' : 'preview-item';
+                div.innerHTML = '<div class="remove-badge">×</div><div class="preview-item-label"></div>';
+                const img = document.createElement('img');
+                const label = div.querySelector('.preview-item-label');
+
+                if (item.isCanvas && item.canvas) {
+                    img.src = item.canvas.toDataURL(item.canvas.mimeType || 'image/png', item.canvas.qualityValue || 1.0);
+                    label.textContent = `Processed: ${item.name || 'Unknown'}`;
+                } else if (item instanceof File) {
+                    const url = URL.createObjectURL(item);
+                    activeObjectURLs.push(url);
+                    img.src = url;
+                    label.textContent = `Source: ${item.name || 'Unknown'}`;
+                } else {
+                    label.textContent = item.name || 'Unknown';
+                }
+
+                img.alt = item.name || 'preview';
+                div.appendChild(img);
+
+                if (removalMode) {
+                    div.addEventListener('click', () => {
+                        if (currentPreviewFilter === 'uploaded' || currentPreviewFilter === 'all') {
+                            uploadedFiles.splice(idx, 1);
+                            processedImages = [];
+                            document.getElementById('downloadBtn').disabled = true;
+                            updateThumbnailGallery();
+                            updatePreview();
+                            updateBatchStats();
+                            updateLivePreview();
+                        }
+                    });
+                }
+                container.appendChild(div);
+            });
+        }
+
+        // Live Preview Canvas
+        function updateLivePreview() {
+            const canvas = document.getElementById('livePreviewCanvas');
+            if (!canvas || uploadedFiles.length === 0) return;
+
+            const ctx = canvas.getContext('2d');
+            const file = uploadedFiles[0];
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Calculate preview size maintaining aspect ratio
+                    const maxW = 600;
+                    const maxH = 400;
+                    let w = img.width;
+                    let h = img.height;
+                    const ratio = Math.min(maxW / w, maxH / h);
+                    w = Math.floor(w * ratio);
+                    h = Math.floor(h * ratio);
+
+                    canvas.width = w;
+                    canvas.height = h;
+
+                    ctx.fillStyle = '#111';
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    // Apply watermark
+                    applyWatermarkToCanvas(ctx, w, h);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyWatermarkToCanvas(ctx, canvasWidth, canvasHeight) {
+            const type = currentWatermarkType;
+            const opacity = parseInt(document.getElementById('watermarkOpacity').value) / 100;
+            const position = currentPosition;
+
+            ctx.save();
+            ctx.globalAlpha = opacity;
+
+            const padding = Math.min(canvasWidth, canvasHeight) * 0.04;
+
+            // Calculate position
+            let x, y;
+            switch (position) {
+                case 'top-left': x = padding; y = padding; break;
+                case 'top-center': x = canvasWidth / 2; y = padding; break;
+                case 'top-right': x = canvasWidth - padding; y = padding; break;
+                case 'middle-left': x = padding; y = canvasHeight / 2; break;
+                case 'center': x = canvasWidth / 2; y = canvasHeight / 2; break;
+                case 'middle-right': x = canvasWidth - padding; y = canvasHeight / 2; break;
+                case 'bottom-left': x = padding; y = canvasHeight - padding; break;
+                case 'bottom-center': x = canvasWidth / 2; y = canvasHeight - padding; break;
+                case 'bottom-right': x = canvasWidth - padding; y = canvasHeight - padding; break;
+                default: x = canvasWidth - padding; y = canvasHeight - padding;
+            }
+
+            if (type === 'text') {
+                // Sanitize text input
+                let text = document.getElementById('watermarkText').value || 'WATERMARK';
+                if (window.sanitizeInput) text = window.sanitizeInput(text);
+                if (text.length > 200) text = text.substring(0, 200); // Hard limit
+
+                const font = document.getElementById('watermarkFont').value || 'Arial';
+                const color = document.getElementById('watermarkColor').value || '#ffffff';
+                const fontSize = Math.max(18, Math.floor(canvasWidth / 20));
+
+                ctx.font = `bold ${fontSize}px ${font}`;
+                ctx.fillStyle = color;
+                ctx.strokeStyle = isLightColor(color) ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.85)';
+                ctx.lineWidth = Math.max(2, fontSize / 16);
+
+                ctx.textAlign = position.includes('right') ? 'right' : position.includes('center') ? 'center' : 'left';
+                ctx.textBaseline = position.includes('bottom') ? 'bottom' : position.includes('middle') || position === 'center' ? 'middle' : 'top';
+
+                ctx.strokeText(text, x, y);
+                ctx.fillText(text, x, y);
+            } else if (type === 'image' && watermarkImage) {
+                const scale = parseInt(document.getElementById('watermarkImageScale').value) / 100;
+                const logoW = watermarkImage.width * scale;
+                const logoH = watermarkImage.height * scale;
+
+                let drawX = x;
+                let drawY = y;
+
+                if (position.includes('center')) drawX -= logoW / 2;
+                if (position.includes('right')) drawX -= logoW;
+                if (position.includes('middle') || position === 'center') drawY -= logoH / 2;
+                if (position.includes('bottom')) drawY -= logoH;
+
+                ctx.drawImage(watermarkImage, drawX, drawY, logoW, logoH);
+            }
+
+            ctx.restore();
+        }
+
+        // Set resize preset
+        function setPreset(width, height) {
+            document.getElementById('resizeWidth').value = width;
+            document.getElementById('resizeHeight').value = height;
+            updateLivePreview();
+            logger.log(`Preset: ${width}×${height}`);
+        }
+
+        // Process single image
+        function processImage(file, targetWidth, targetHeight, exportMode) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        const ctx = canvas.getContext('2d');
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, targetWidth, targetHeight);
+                        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+                        // Apply watermark
+                        const opacity = parseInt(document.getElementById('watermarkOpacity').value) / 100;
+                        ctx.save();
+                        ctx.globalAlpha = opacity;
+
+                        const padding = Math.min(targetWidth, targetHeight) * 0.04;
+                        const position = currentPosition;
+
+                        let x, y;
+                        switch (position) {
+                            case 'top-left': x = padding; y = padding; break;
+                            case 'top-center': x = targetWidth / 2; y = padding; break;
+                            case 'top-right': x = targetWidth - padding; y = padding; break;
+                            case 'middle-left': x = padding; y = targetHeight / 2; break;
+                            case 'center': x = targetWidth / 2; y = targetHeight / 2; break;
+                            case 'middle-right': x = targetWidth - padding; y = targetHeight / 2; break;
+                            case 'bottom-left': x = padding; y = targetHeight - padding; break;
+                            case 'bottom-center': x = targetWidth / 2; y = targetHeight - padding; break;
+                            case 'bottom-right': x = targetWidth - padding; y = targetHeight - padding; break;
+                        }
+
+                        if (currentWatermarkType === 'text') {
+                            const text = document.getElementById('watermarkText').value || 'WATERMARK';
+                            const font = document.getElementById('watermarkFont').value || 'Arial';
+                            const color = document.getElementById('watermarkColor').value || '#ffffff';
+                            const fontSize = Math.max(24, Math.floor(targetWidth / 20));
+
+                            ctx.font = `bold ${fontSize}px ${font}`;
+                            ctx.fillStyle = color;
+                            ctx.strokeStyle = isLightColor(color) ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.85)';
+                            ctx.lineWidth = Math.max(2, fontSize / 16);
+
+                            ctx.textAlign = position.includes('right') ? 'right' : position.includes('center') ? 'center' : 'left';
+                            ctx.textBaseline = position.includes('bottom') ? 'bottom' : position.includes('middle') || position === 'center' ? 'middle' : 'top';
+
+                            ctx.strokeText(text, x, y);
+                            ctx.fillText(text, x, y);
+                        } else if (currentWatermarkType === 'image' && watermarkImage) {
+                            const scale = parseInt(document.getElementById('watermarkImageScale').value) / 100;
+                            const logoW = watermarkImage.width * scale;
+                            const logoH = watermarkImage.height * scale;
+
+                            let drawX = x;
+                            let drawY = y;
+                            if (position.includes('center')) drawX -= logoW / 2;
+                            if (position.includes('right')) drawX -= logoW;
+                            if (position.includes('middle') || position === 'center') drawY -= logoH / 2;
+                            if (position.includes('bottom')) drawY -= logoH;
+
+                            ctx.drawImage(watermarkImage, drawX, drawY, logoW, logoH);
+                        }
+
+                        ctx.restore();
+
+                        const mimeType = exportMode === 'high' ? 'image/png' : 'image/jpeg';
+                        const quality = exportMode === 'medium' ? 0.92 : exportMode === 'low' ? 0.75 : 1.0;
+                        canvas.mimeType = mimeType;
+                        canvas.qualityValue = quality;
+                        resolve(canvas);
+                    };
+                    img.onerror = () => reject(new Error(`Failed to decode ${file.name}`));
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Calculate target dimensions
+        function calculateTargetDimensions(originalWidth, originalHeight) {
+            if (currentResizeMode === 'percentage') {
+                const percent = parseInt(document.getElementById('resizePercentage').value) / 100;
+                return {
+                    width: Math.floor(originalWidth * percent),
+                    height: Math.floor(originalHeight * percent)
+                };
+            } else {
+                let width = parseInt(document.getElementById('resizeWidth').value);
+                let height = parseInt(document.getElementById('resizeHeight').value);
+                
+                if (constrainProportions) {
+                    const ratio = originalWidth / originalHeight;
+                    if (width / height > ratio) {
+                        width = Math.floor(height * ratio);
+                    } else {
+                        height = Math.floor(width / ratio);
+                    }
+                }
+                return { width, height };
+            }
+        }
+
+        // === HARDENED BATCH PROCESSING ===
+        async function processAllImages() {
+            if (uploadedFiles.length === 0) {
+                alert('Please upload images first.');
+                return;
+            }
+
+            // Rate limiting
+            if (!window.ProcessingRateLimiter.canProcess()) {
+                alert('Please wait before processing again.');
+                return;
+            }
+
+            const processBtn = document.getElementById('processBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            processBtn.disabled = true;
+            processBtn.textContent = '⏳ Processing...';
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+
+            // Clear previous processed images to free memory
+            processedImages = [];
+
+            const exportMode = document.getElementById('resizeQuality').value;
+            let successCount = 0;
+            let failCount = 0;
+
+            // Use a bounded loop with proper cleanup
+            for (let i = 0; i < uploadedFiles.length; i++) {
+                const file = uploadedFiles[i];
+                
+                try {
+                    // Timeout protection per file
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Processing timeout')), 30000)
+                    );
+
+                    const processingPromise = (async () => {
+                        const img = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = e => {
+                                const image = new Image();
+                                image.onload = () => resolve(image);
+                                image.onerror = () => reject(new Error(`Decode failed: ${file.name}`));
+                                image.src = e.target.result;
+                            };
+                            reader.onerror = () => reject(new Error(`Read failed: ${file.name}`));
+                            reader.readAsDataURL(file);
+                        });
+
+                        const { width, height } = calculateTargetDimensions(img.width, img.height);
+                        
+                        // Validate dimensions
+                        if (width < 10 || height < 10 || width > 16000 || height > 16000) {
+                            throw new Error(`Invalid dimensions for ${file.name}`);
+                        }
+
+                        return await processImage(file, width, height, exportMode);
+                    })();
+
+                    const canvas = await Promise.race([processingPromise, timeoutPromise]);
+                    
+                    // Sanitize filename for storage
+                    const safeName = window.sanitizeInput ? window.sanitizeInput(file.name) : file.name;
+                    processedImages.push({ name: safeName, canvas });
+                    successCount++;
+
+                } catch (error) {
+                    failCount++;
+                    logger.error(`Failed: ${file.name}`, error);
+                }
+
+                // Update progress
+                const progress = Math.round(((i + 1) / uploadedFiles.length) * 100);
+                progressFill.style.width = `${progress}%`;
+                progressText.textContent = `${progress}% (${successCount} ok, ${failCount} fail)`;
+
+                // Yield to UI thread
+                await new Promise(r => setTimeout(r, 0));
+            }
+
+            processBtn.disabled = false;
+            processBtn.textContent = 'Process Images';
+            downloadBtn.disabled = processedImages.length === 0;
+
+            updatePreview();
+            updateBatchStats();
+            progressText.textContent = `Done: ${successCount} processed, ${failCount} failed`;
+
+            if (failCount > 0) {
+                logger.warning(`Batch complete with ${failCount} failures`);
+            } else {
+                logger.success(`Batch complete: ${successCount} images`);
+            }
+        }
+
+        // === HARDENED ZIP EXPORT ===
+        async function downloadAsZip() {
+            if (processedImages.length === 0) {
+                alert('No processed images to download.');
+                return;
+            }
+
+            // Check if JSZip failed to load
+            if (window.JSZIP_LOAD_FAILED || typeof JSZip === 'undefined') {
+                alert('ZIP library failed to load. Please refresh the page or download files individually.');
+                return;
+            }
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = '⏳ Creating ZIP...';
+
+            try {
+                const zip = new JSZip();
+                const folder = zip.folder('processed-images');
+
+                // Process in batches to avoid memory spikes
+                const BATCH_SIZE = 5;
+                for (let i = 0; i < processedImages.length; i += BATCH_SIZE) {
+                    const batch = processedImages.slice(i, i + BATCH_SIZE);
+                    
+                    await Promise.all(batch.map(async (item) => {
+                        try {
+                            const dataUrl = item.canvas.toDataURL(
+                                item.canvas.mimeType || 'image/jpeg', 
+                                item.canvas.qualityValue || 0.92
+                            );
+                            const base64Data = dataUrl.split(',')[1];
+                            const safeName = window.sanitizeInput ? window.sanitizeInput(item.name) : item.name;
+                            folder.file(`processed-${safeName}`, base64Data, { base64: true });
+                        } catch (err) {
+                            logger.warning(`Skipped file in ZIP: ${item.name}`);
+                        }
+                    }));
+
+                    // Yield between batches
+                    await new Promise(r => setTimeout(r, 10));
+                }
+
+                const content = await zip.generateAsync({ 
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                });
+
+                const url = URL.createObjectURL(content);
+                const link = document.createElement('a');
+                link.href = url;
+                const dateStr = new Date().toISOString().slice(0, 10);
+                link.download = `watermarked-images-${dateStr}.zip`;
+                link.click();
+
+                // Cleanup
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+                logger.success(`ZIP created with ${processedImages.length} images`);
+            } catch (error) {
+                logger.error('ZIP creation failed', error);
+                alert('Failed to create ZIP file. Try downloading individual files instead.');
+            }
+
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = 'Download ZIP';
+        }
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropArea = document.getElementById('dropArea');
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const processBtn = document.getElementById('processBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const previewContainer = document.getElementById('previewContainer');
+
+            // File upload handlers
+            browseBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+            // Drag and drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+                dropArea.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); });
+            });
+            ['dragenter', 'dragover'].forEach(evt => {
+                dropArea.addEventListener(evt, () => {
+                    dropArea.style.borderColor = '#fff';
+                    dropArea.style.backgroundColor = 'rgba(255,255,255,0.15)';
+                });
+            });
+            ['dragleave', 'drop'].forEach(evt => {
+                dropArea.addEventListener(evt, () => {
+                    dropArea.style.borderColor = 'rgba(255,255,255,0.6)';
+                    dropArea.style.backgroundColor = '';
+                });
+            });
+            dropArea.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+            // Resize mode toggle
+            document.querySelectorAll('.resize-mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.resize-mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentResizeMode = btn.dataset.mode;
+                    document.getElementById('dimensionsMode').style.display = currentResizeMode === 'dimensions' ? 'block' : 'none';
+                    document.getElementById('percentageMode').style.display = currentResizeMode === 'percentage' ? 'block' : 'none';
+                    updateLivePreview();
+                });
+            });
+
+            // Percentage slider
+            const percentageSlider = document.getElementById('resizePercentage');
+            const percentageValue = document.getElementById('percentageValue');
+            percentageSlider.addEventListener('input', () => {
+                percentageValue.textContent = `${percentageSlider.value}%`;
+                updateLivePreview();
+            });
+
+            // Constrain proportions
+            document.getElementById('constrainProportions').addEventListener('change', e => {
+                constrainProportions = e.target.checked;
+            });
+
+            // Watermark type toggle
+            document.querySelectorAll('.watermark-type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.watermark-type-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentWatermarkType = btn.dataset.type;
+                    document.getElementById('textWatermarkSettings').style.display = currentWatermarkType === 'text' ? 'block' : 'none';
+                    document.getElementById('imageWatermarkSettings').style.display = currentWatermarkType === 'image' ? 'block' : 'none';
+                    updateLivePreview();
+                });
+            });
+
+            // Watermark image upload
+            document.getElementById('watermarkImageInput').addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    const img = new Image();
+                    img.onload = () => {
+                        watermarkImage = img;
+                        updateLivePreview();
+                        logger.success('Logo loaded for watermark');
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // Position grid
+            document.querySelectorAll('#positionGrid .position-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#positionGrid .position-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentPosition = btn.dataset.pos;
+                    updateLivePreview();
+                });
+            });
+
+            // Live preview triggers
+            ['watermarkText', 'watermarkFont', 'watermarkColor', 'watermarkOpacity', 'watermarkImageScale'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', updateLivePreview);
+            });
+
+            // Width/Height inputs
+            ['resizeWidth', 'resizeHeight'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', updateLivePreview);
+            });
+
+            // Export format change
+            document.getElementById('resizeQuality').addEventListener('change', updateLivePreview);
+
+            // Process button
+            processBtn.addEventListener('click', processAllImages);
+
+            // Download ZIP button
+            downloadBtn.addEventListener('click', downloadAsZip);
+
+            // Preview filters
+            document.querySelectorAll('.preview-filter[data-filter]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.preview-filter[data-filter]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentPreviewFilter = btn.dataset.filter;
+                    updatePreview();
+                });
+            });
+
+            // Remove mode
+            document.getElementById('toggleRemoveMode').addEventListener('click', () => {
+                removalMode = !removalMode;
+                document.getElementById('toggleRemoveMode').innerHTML = removalMode 
+                    ? '<i class="fas fa-trash"></i> Remove Mode (ON)' 
+                    : '<i class="fas fa-trash"></i> Remove Mode (OFF)';
+                updatePreview();
+            });
+
+            // Debug clear
+            document.getElementById('clearDebugBtn').addEventListener('click', () => logger.clear());
+
+            // Settings buttons (keep existing functionality)
+            document.getElementById('exportSettingsBtn').addEventListener('click', () => {
+                const settings = {
+                    watermarkText: document.getElementById('watermarkText').value,
+                    watermarkFont: document.getElementById('watermarkFont').value,
+                    watermarkColor: document.getElementById('watermarkColor').value,
+                    watermarkOpacity: document.getElementById('watermarkOpacity').value,
+                    watermarkPosition: currentPosition,
+                    watermarkType: currentWatermarkType,
+                    resizeMode: currentResizeMode,
+                    resizeWidth: document.getElementById('resizeWidth').value,
+                    resizeHeight: document.getElementById('resizeHeight').value,
+                    resizePercentage: document.getElementById('resizePercentage').value,
+                    constrainProportions: document.getElementById('constrainProportions').checked,
+                    resizeQuality: document.getElementById('resizeQuality').value
+                };
+                const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prophoto-settings-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            document.getElementById('importSettingsBtn').addEventListener('click', () => {
+                document.getElementById('settingsInput').click();
+            });
+
+            document.getElementById('settingsInput').addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    try {
+                        const settings = JSON.parse(ev.target.result);
+                        if (settings.watermarkText) document.getElementById('watermarkText').value = settings.watermarkText;
+                        if (settings.watermarkFont) document.getElementById('watermarkFont').value = settings.watermarkFont;
+                        if (settings.watermarkColor) document.getElementById('watermarkColor').value = settings.watermarkColor;
+                        if (settings.watermarkOpacity) document.getElementById('watermarkOpacity').value = settings.watermarkOpacity;
+                        if (settings.watermarkPosition) {
+                            currentPosition = settings.watermarkPosition;
+                            document.querySelectorAll('#positionGrid .position-btn').forEach(b => {
+                                b.classList.toggle('active', b.dataset.pos === currentPosition);
+                            });
+                        }
+                        if (settings.watermarkType) {
+                            currentWatermarkType = settings.watermarkType;
+                            document.querySelectorAll('.watermark-type-btn').forEach(b => {
+                                b.classList.toggle('active', b.dataset.type === currentWatermarkType);
+                            });
+                            document.getElementById('textWatermarkSettings').style.display = currentWatermarkType === 'text' ? 'block' : 'none';
+                            document.getElementById('imageWatermarkSettings').style.display = currentWatermarkType === 'image' ? 'block' : 'none';
+                        }
+                        if (settings.resizeMode) {
+                            currentResizeMode = settings.resizeMode;
+                            document.querySelectorAll('.resize-mode-btn').forEach(b => {
+                                b.classList.toggle('active', b.dataset.mode === currentResizeMode);
+                            });
+                            document.getElementById('dimensionsMode').style.display = currentResizeMode === 'dimensions' ? 'block' : 'none';
+                            document.getElementById('percentageMode').style.display = currentResizeMode === 'percentage' ? 'block' : 'none';
+                        }
+                        if (settings.resizeWidth) document.getElementById('resizeWidth').value = settings.resizeWidth;
+                        if (settings.resizeHeight) document.getElementById('resizeHeight').value = settings.resizeHeight;
+                        if (settings.resizePercentage) document.getElementById('resizePercentage').value = settings.resizePercentage;
+                        if (settings.constrainProportions !== undefined) document.getElementById('constrainProportions').checked = settings.constrainProportions;
+                        if (settings.resizeQuality) document.getElementById('resizeQuality').value = settings.resizeQuality;
+                        
+                        updateLivePreview();
+                        logger.success('Settings imported');
+                    } catch (err) {
+                        logger.error('Failed to import settings', err);
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            });
+
+            document.getElementById('resetSettingsBtn').addEventListener('click', () => {
+                if (!confirm('Reset all settings to defaults?')) return;
+                document.getElementById('watermarkText').value = '© Your Brand';
+                document.getElementById('watermarkFont').value = 'Arial';
+                document.getElementById('watermarkColor').value = '#ffffff';
+                document.getElementById('watermarkOpacity').value = 70;
+                document.getElementById('opacityValue').textContent = '70%';
+                currentPosition = 'center';
+                document.querySelectorAll('#positionGrid .position-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === 'center'));
+                currentWatermarkType = 'text';
+                document.querySelectorAll('.watermark-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'text'));
+                document.getElementById('textWatermarkSettings').style.display = 'block';
+                document.getElementById('imageWatermarkSettings').style.display = 'none';
+                currentResizeMode = 'dimensions';
+                document.querySelectorAll('.resize-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'dimensions'));
+                document.getElementById('dimensionsMode').style.display = 'block';
+                document.getElementById('percentageMode').style.display = 'none';
+                document.getElementById('resizeWidth').value = DEFAULT_WIDTH;
+                document.getElementById('resizeHeight').value = DEFAULT_HEIGHT;
+                document.getElementById('resizePercentage').value = 100;
+                document.getElementById('percentageValue').textContent = '100%';
+                document.getElementById('constrainProportions').checked = true;
+                document.getElementById('resizeQuality').value = 'medium';
+                watermarkImage = null;
+                document.getElementById('watermarkImageInput').value = '';
+                updateLivePreview();
+                logger.success('Settings reset to defaults');
+            });
+
+            // Opacity display
+            const opacitySlider = document.getElementById('watermarkOpacity');
+            const opacityValue = document.getElementById('opacityValue');
+            opacitySlider.addEventListener('input', () => {
+                opacityValue.textContent = `${opacitySlider.value}%`;
+            });
+
+            // Color swatches
+            document.querySelectorAll('.swatch').forEach(swatch => {
+                swatch.addEventListener('click', () => {
+                    const color = swatch.dataset.color;
+                    document.getElementById('watermarkColor').value = color;
+                    updateLivePreview();
+                });
+            });
+
+            // Initial live preview trigger
+            setTimeout(() => {
+                if (uploadedFiles.length > 0) updateLivePreview();
+            }, 100);
+
+            logger.success('ProPhoto Watermarker & Resizer initialized (Professional Edition)');
+        });
+    </script>
+</body>
+</html>

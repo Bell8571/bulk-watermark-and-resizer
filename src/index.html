@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProPhoto Watermarker & Resizer</title>
+    <link rel="stylesheet" href="./styles/app.css">
+</head>
+<body>
+<div class="container">
+        <header>
+            <h1><i class="fas fa-camera"></i> ProPhoto Watermarker & Resizer</h1>
+            <p>Professional watermarking & batch resizing for photographers. Protect your portfolio and deliver client files at scale.</p>
+            <p class="lead-text">Perfect for client galleries, proof sets, social sharing and print-ready exports.</p>
+        </header>
+
+        <details class="card instructions">
+            <summary>
+                <i class="fas fa-circle-question"></i>
+                How to use this tool
+                <i class="fas fa-chevron-down chevron"></i>
+            </summary>
+            <div class="instructions-body">
+                <p class="intro">Watermark and resize a whole batch of photos in your browser — nothing is uploaded to a server. Follow the steps below.</p>
+                <ol class="steps">
+                    <li>
+                        <strong>Upload your images</strong>
+                        <span>Drag &amp; drop files onto the upload box, or click <em>Select Images</em> to browse. Up to 50 images per batch, max 50&nbsp;MB each.</span>
+                    </li>
+                    <li>
+                        <strong>Configure resize &amp; watermark</strong>
+                        <span>Choose resize mode (dimensions or percentage), toggle between text/image watermark, pick position from the 3x3 grid, and adjust opacity/color/scale.</span>
+                    </li>
+                    <li>
+                        <strong>Live Preview</strong>
+                        <span>See real-time preview of the first image with current settings applied on the live canvas.</span>
+                    </li>
+                    <li>
+                        <strong>Process &amp; Export</strong>
+                        <span>Click <em>Process Images</em>. Progress bar shows status. Download as individual files or a single ZIP archive.</span>
+                    </li>
+                </ol>
+                <div class="tips">
+                    <h4><i class="fas fa-lightbulb"></i> Tips</h4>
+                    <ul>
+                        <li>Client-side only: all processing happens in your browser using Canvas API.</li>
+                        <li>Supports JPEG, PNG, WebP, GIF, BMP. Max 50 files, 50MB each.</li>
+                        <li>Use the 3x3 position grid for precise watermark placement.</li>
+                        <li>Image watermarks (logos) maintain aspect ratio automatically.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <div class="card">
+            <h2 class="card-title"><i class="fas fa-cloud-upload-alt"></i> Upload Your Images</h2>
+            <p class="card-subtitle">Drag & drop multiple images or browse. Thumbnails appear below with remove buttons.</p>
+            
+            <div id="batchStats" class="batch-stats" style="display:none;">
+                <div class="stat-item"><span class="stat-label">Status</span><span class="stat-value stat-value--sm" id="statProgress">Ready</span></div>
+                <div class="stat-item"><span class="stat-label">Uploaded</span><span class="stat-value" id="statUploaded">0</span></div>
+                <div class="stat-item"><span class="stat-label">Processed</span><span class="stat-value" id="statProcessed">0</span></div>
+                <div class="stat-item"><span class="stat-label">Format</span><span class="stat-value" id="statFormat">-</span></div>
+                <div class="stat-item"><span class="stat-label">Output Size</span><span class="stat-value" id="statSize">-</span></div>
+            </div>
+            
+            <div class="upload-area" id="dropArea">
+                <i class="fas fa-images"></i>
+                <h3>Drag & Drop Images Here</h3>
+                <p>or click to browse files (25-50 images recommended)</p>
+                <button class="btn" id="browseBtn">Select Images</button>
+                <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" style="display: none;">
+            </div>
+
+            <!-- Thumbnail Gallery -->
+            <div id="thumbnailGallery" class="thumbnail-gallery"></div>
+            
+            <div class="settings-export-import">
+                <button type="button" class="settings-btn" id="exportSettingsBtn"><i class="fas fa-file-export"></i> Export Settings</button>
+                <button type="button" class="settings-btn" id="importSettingsBtn"><i class="fas fa-file-import"></i> Import Settings</button>
+                <button type="button" class="settings-btn" id="resetSettingsBtn"><i class="fas fa-undo"></i> Reset Defaults</button>
+                <input type="file" id="settingsInput" accept="application/json">
+            </div>
+            <div class="controls">
+                <!-- Resize Controls -->
+                <div class="control-group">
+                    <h3><i class="fas fa-expand-arrows-alt"></i> Resize Settings</h3>
+                    
+                    <div class="resize-mode-toggle">
+                        <button type="button" class="resize-mode-btn active" data-mode="dimensions">By Dimensions</button>
+                        <button type="button" class="resize-mode-btn" data-mode="percentage">By Percentage</button>
+                    </div>
+
+                    <div id="dimensionsMode">
+                        <div class="form-group">
+                            <label>Quick Presets</label>
+                            <div class="preset-buttons">
+                                <button type="button" class="preset-btn preset-dimension" data-preset-w="1920" data-preset-h="1280">Web (1920×1280)</button>
+                                <button type="button" class="preset-btn preset-dimension" data-preset-w="2048" data-preset-h="1365">Portfolio (2K)</button>
+                                <button type="button" class="preset-btn preset-dimension" data-preset-w="3600" data-preset-h="2400">Print (3600×2400)</button>
+                                <button type="button" class="preset-btn preset-dimension" data-preset-w="1080" data-preset-h="1080">Social (1080×1080)</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="resizeWidth">Width (px)</label>
+                            <input type="number" id="resizeWidth" class="form-control" value="1920" min="50" max="8000">
+                        </div>
+                        <div class="form-group">
+                            <label for="resizeHeight">Height (px)</label>
+                            <input type="number" id="resizeHeight" class="form-control" value="1280" min="50" max="8000">
+                        </div>
+                    </div>
+
+                    <div id="percentageMode" style="display:none;">
+                        <div class="form-group">
+                            <label for="resizePercentage">Scale (%)</label>
+                            <div class="slider-container">
+                                <input type="range" id="resizePercentage" min="10" max="200" value="100">
+                                <span id="percentageValue">100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><input type="checkbox" id="constrainProportions" checked> Constrain Proportions</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="resizeQuality">Export Format</label>
+                        <select id="resizeQuality" class="form-control">
+                            <option value="high">PNG Lossless</option>
+                            <option value="medium" selected>JPG 92% (Recommended)</option>
+                            <option value="low">JPG 75% (Optimized)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="outputFilenamePattern">Output filename pattern</label>
+                        <input type="text" id="outputFilenamePattern" class="form-control" value="{basename}_watermarked" placeholder="{basename}_watermarked">
+                        <small style="opacity:0.75">Tokens: {basename}, {ext}</small>
+                    </div>
+                </div>
+
+                <!-- Advanced Watermark Controls -->
+                <div class="control-group">
+                    <h3><i class="fas fa-water"></i> Watermark Settings</h3>
+                    
+                    <div class="watermark-type-toggle">
+                        <button type="button" class="watermark-type-btn active" data-type="text">Text</button>
+                        <button type="button" class="watermark-type-btn" data-type="image">Image / Logo</button>
+                    </div>
+
+                    <!-- Text Watermark Settings -->
+                    <div id="textWatermarkSettings">
+                        <div class="form-group">
+                            <label for="watermarkText">Watermark Text</label>
+                            <input type="text" id="watermarkText" class="form-control" placeholder="Enter text" value="© Your Brand">
+                        </div>
+                        <div class="form-group">
+                            <label for="watermarkFont">Font Family</label>
+                            <select id="watermarkFont" class="form-control">
+                                <option value="Arial">Arial</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Impact">Impact</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="watermarkColor">Text Color</label>
+                            <div class="color-picker-row">
+                                <div class="swatches">
+                                    <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+                                    <button type="button" class="swatch" data-color="#000000" style="background:#000000" title="Black"></button>
+                                    <button type="button" class="swatch" data-color="#ff3b30" style="background:#ff3b30" title="Red"></button>
+                                    <button type="button" class="swatch" data-color="#ffd60a" style="background:#ffd60a" title="Yellow"></button>
+                                    <button type="button" class="swatch" data-color="#34c759" style="background:#34c759" title="Green"></button>
+                                    <button type="button" class="swatch" data-color="#00d4ff" style="background:#00d4ff" title="Cyan"></button>
+                                </div>
+                                <input type="color" id="watermarkColor" value="#ffffff">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Watermark Settings -->
+                    <div id="imageWatermarkSettings" style="display:none;">
+                        <div class="form-group">
+                            <label for="watermarkImageInput">Upload Logo</label>
+                            <input type="file" id="watermarkImageInput" accept="image/*" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="watermarkImageScale">Logo Scale: <span id="imageScaleValue">50%</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="watermarkImageScale" min="10" max="150" value="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="watermarkOpacity">Opacity: <span id="opacityValue">70%</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="watermarkOpacity" min="0" max="100" value="70">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Position (3×3 Grid)</label>
+                        <div class="position-grid" id="positionGrid">
+                            <button type="button" class="position-btn" data-pos="top-left">↖</button>
+                            <button type="button" class="position-btn" data-pos="top-center">↑</button>
+                            <button type="button" class="position-btn" data-pos="top-right">↗</button>
+                            <button type="button" class="position-btn" data-pos="middle-left">←</button>
+                            <button type="button" class="position-btn active" data-pos="center">●</button>
+                            <button type="button" class="position-btn" data-pos="middle-right">→</button>
+                            <button type="button" class="position-btn" data-pos="bottom-left">↙</button>
+                            <button type="button" class="position-btn" data-pos="bottom-center">↓</button>
+                            <button type="button" class="position-btn" data-pos="bottom-right">↘</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="live-preview-section">
+                <h3><i class="fas fa-eye"></i> Live Preview (First Image)</h3>
+                <canvas id="livePreviewCanvas" class="live-preview-canvas" width="600" height="400"></canvas>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" id="processBtn"><i class="fas fa-cogs"></i> Process Images</button>
+                <button class="btn btn-secondary" id="downloadBtn" disabled><i class="fas fa-download"></i> Download ZIP</button>
+            </div>
+
+            <!-- Progress -->
+            <div id="progressContainer" style="display:none; margin-top:20px;">
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div id="progressText" style="text-align:center; margin-top:8px;">0%</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title"><i class="fas fa-images"></i> Batch Preview</h2>
+            <div class="preview-controls">
+                <button type="button" class="preview-filter active" data-filter="all">All</button>
+                <button type="button" class="preview-filter" data-filter="uploaded">Source</button>
+                <button type="button" class="preview-filter" data-filter="processed">Processed</button>
+                <button type="button" class="preview-filter" id="toggleRemoveMode"><i class="fas fa-trash"></i> Remove Mode (OFF)</button>
+            </div>
+            <div class="preview-container" id="previewContainer">
+                <div class="preview-item"><div class="placeholder"><i class="fas fa-image"></i><p>No images loaded</p></div></div>
+            </div>
+        </div>
+
+        <div class="card debug-card" id="debugCard">
+            <h2 class="card-title"><i class="fas fa-terminal"></i> Debug Console</h2>
+            <details id="debugDetails">
+                <summary><i class="fas fa-code"></i> Advanced — show debug log</summary>
+            </details>
+            <button type="button" class="settings-btn" id="clearDebugBtn"><i class="fas fa-trash"></i> Clear Log</button>
+            <div class="debug-console" id="debugConsole">
+                <div class="debug-entry success">Application initialized. Ready to process images.</div>
+            </div>
+        </div>
+
+        <footer class="app-footer">
+            <p>ProPhoto Watermarker & Resizer • Professional tools for photographers • © BellCorporateLabs</p>
+            <p class="app-footer-version" id="appVersionFooter"></p>
+        </footer>
+    </div>
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>

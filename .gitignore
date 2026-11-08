@@ -3,3 +3,12 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+
+node_modules/
+dist/
+dist-electron/
+*.exe
+
+# Built release binaries (markdown templates in release/ are tracked)
+release/**/ProPhoto-Watermarker-*.exe
+release/**/SHA256.txt

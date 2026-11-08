@@ -1,0 +1,17 @@
+:root {
+  --color-bg-start: #0f1419;
+  --color-bg-mid: #1a2633;
+  --color-accent: #00d4ff;
+  --color-accent-dark: #0099cc;
+  --color-text: #ffffff;
+  --color-text-muted: rgba(255, 255, 255, 0.75);
+  --color-danger: #ff3b30;
+  --color-success: #34c759;
+  --color-warning: #ffd60a;
+  --radius-card: 20px;
+  --radius-control: 10px;
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --font-ui: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-mono: 'Courier New', monospace;
+  --focus-ring: 0 0 0 3px rgba(0, 212, 255, 0.45);
+}
